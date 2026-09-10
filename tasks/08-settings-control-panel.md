@@ -1,59 +1,56 @@
 # Task 8: Settings and the Control Panel
 
-## السؤال والإجابة
-- **السؤال:** *In the Control Panel, change the view to Small icons. What is the last setting in the Control Panel view?*
-- **الإجابة:** `Windows Defender Firewall`
+## Question
+- **Q:** In the Control Panel, change the view to Small icons. What is the last setting in the Control Panel view?
+- **A:** `Windows Defender Firewall`
 
-## المفهوم الأمني
+## Security-relevant concepts
 
-### التحكم بالشبكة المحلية
-يميّز Windows الحديث بين واجهتين لإدارة الإعدادات:
-- **Settings** (الحديثة، أبسط وأكثر ودّية للمستخدم العادي).
-- **Control Panel** (التقليدية، وتحتوي إعدادات متقدمة لا تزال غير متوفرة بالكامل في Settings، مثل بعض إعدادات الجدار الناري المتقدمة والشبكة).
-معرفة كلتا الواجهتين مهمة لأن بعض الإعدادات الأمنية الحرجة (كقواعد الجدار الناري المتقدمة) لا يمكن الوصول إليها إلا عبر Control Panel أو أدوات مخصصة مثل `wf.msc`.
+### Settings vs. Control Panel
+Modern Windows splits configuration across two interfaces: the newer **Settings** app (simpler, aimed at everyday users) and the legacy **Control Panel** (more advanced, and still the only place to reach some settings — advanced firewall configuration among them). Knowing both matters because some of the more critical security settings still live only in Control Panel or tools like `wf.msc`.
 
-### الحد من التحرك الجانبي (Lateral Movement)
-استخدام الجدار الناري (Windows Defender Firewall) لحظر منافذ حرجة معروفة باستغلالها في الانتشار داخل الشبكة:
-- **445 (SMB)**: البروتوكول الذي استُغل في هجمات ضخمة مثل WannaCry وNotPetya للانتشار التلقائي بين الأجهزة.
-- **3389 (RDP)**: بروتوكول سطح المكتب البعيد، هدف شائع لهجمات القوة الغاشمة (Brute Force) والوصول غير المصرَّح به.
-حظر هذه المنافذ على مستوى الشبكة الداخلية (وليس فقط من الإنترنت) يقلل بشكل كبير من قدرة برمجية خبيثة على الانتشار من جهاز مصاب إلى بقية الشبكة (Lateral Movement).
+### Cutting off lateral movement
+Blocking known high-risk ports at the firewall level:
+- **445 (SMB)** — the protocol behind large-scale worm outbreaks like WannaCry and NotPetya, which spread automatically machine-to-machine.
+- **3389 (RDP)** — a frequent target for brute-force attempts and unauthorized remote access.
 
-## شرح الأوامر العملية
+Blocking these on internal network traffic (not just from the internet) is one of the more effective ways to stop a compromised machine from spreading to the rest of the network.
+
+## Commands
 
 ### `control firewall.cpl`
-يفتح مباشرة لوحة تحكم **Windows Defender Firewall** التقليدية (ملف `.cpl` هو ملف تنفيذي خاص بعناصر Control Panel). طريقة سريعة للوصول إلى إعدادات الجدار الناري دون التنقل يدوياً بين القوائم.
+Opens the classic **Windows Defender Firewall** control panel directly (`.cpl` files are Control Panel applet executables). Faster than navigating menus manually.
 
 ```cmd
 control firewall.cpl
 ```
 
 ### `control /name Microsoft.ControlPanel`
-يفتح Control Panel بأكمله (الصفحة الرئيسية) باستخدام الاسم الكانوني (Canonical Name) الخاص به بدلاً من فتح عنصر فرعي محدد. مفيد كنقطة بداية عامة للتنقل بين كل الإعدادات.
+Opens the Control Panel home page using its canonical name rather than jumping to a specific applet — a general starting point for navigating settings.
 
 ```cmd
 control /name Microsoft.ControlPanel
 ```
 
 ### `Get-NetFirewallProfile | Select-Object Name, Enabled, DefaultInboundAction, DefaultOutboundAction`
-أمر PowerShell لفحص حالة الجدار الناري برمجياً، خطوة بخطوة:
-1. `Get-NetFirewallProfile` — يجلب إعدادات كل ملف تعريف شبكة (Firewall Profile) موجود: **Domain**، **Private**، **Public**.
-2. `Select-Object Name, Enabled, DefaultInboundAction, DefaultOutboundAction` — يعرض فقط: اسم الملف الشخصي، هل الجدار الناري مفعّل فيه، والسلوك الافتراضي للاتصالات الواردة والصادرة (سماح/حظر).
+1. `Get-NetFirewallProfile` pulls the settings for each firewall profile: **Domain**, **Private**, **Public**.
+2. `Select-Object` narrows it down to profile name, whether it's enabled, and the default behavior for inbound/outbound traffic.
 
-هذا الأمر أساسي في التدقيق الأمني السريع: التأكد أن الجدار الناري مفعّل في كل الملفات الثلاثة، وأن السلوك الافتراضي للاتصالات الواردة هو الحظر (وليس السماح).
+A quick first check in any security review — confirming the firewall is actually on across all three profiles, and that inbound traffic defaults to blocked rather than allowed.
 
 ```powershell
 Get-NetFirewallProfile | Select-Object Name, Enabled, DefaultInboundAction, DefaultOutboundAction
 ```
 
 ### `New-NetFirewallRule -DisplayName "Block SMB Inbound" -Direction Inbound -LocalPort 445 -Protocol TCP -Action Block`
-أمر ينشئ قاعدة جدار ناري جديدة برمجياً، تفكيك المعاملات (Parameters):
-- `-DisplayName "Block SMB Inbound"` — اسم وصفي للقاعدة يظهر لاحقاً في قائمة القواعد.
-- `-Direction Inbound` — تنطبق القاعدة على الاتصالات **الواردة** إلى الجهاز فقط (وليس الصادرة منه).
-- `-LocalPort 445` — تستهدف تحديداً المنفذ 445 (بروتوكول SMB) على هذا الجهاز.
-- `-Protocol TCP` — تنطبق على بروتوكول TCP تحديداً.
-- `-Action Block` — الإجراء عند تطابق القاعدة هو **الحظر الكامل** لتلك الاتصالات.
+Creates a new firewall rule programmatically:
+- `-DisplayName` — a readable name for the rule.
+- `-Direction Inbound` — applies only to incoming connections.
+- `-LocalPort 445` — targets SMB specifically.
+- `-Protocol TCP` — restricts it to TCP.
+- `-Action Block` — drops matching traffic outright.
 
-نتيجة الأمر: أي محاولة اتصال واردة على المنفذ 445 عبر TCP سيتم حظرها فوراً على مستوى الجهاز — إجراء دفاعي مباشر لمنع استغلال ثغرات SMB (مثل EternalBlue) أو منع دودة تنتشر عبر هذا البروتوكول من الوصول لهذا الجهاز.
+The net effect: any inbound TCP connection attempt on port 445 gets blocked at this machine — a direct defensive move against SMB-based exploits like EternalBlue, or against worms trying to spread via that protocol.
 
 ```powershell
 New-NetFirewallRule -DisplayName "Block SMB Inbound" -Direction Inbound -LocalPort 445 -Protocol TCP -Action Block

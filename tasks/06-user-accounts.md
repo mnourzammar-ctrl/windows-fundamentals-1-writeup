@@ -1,65 +1,65 @@
 # Task 6: User Accounts, Profiles, and Permissions
 
-## الأسئلة والإجابات
+## Questions
 1. **What is the name of the other user account?** → `tryhackmebilly`
 2. **What groups is this user a member of?** → `Remote Desktop Users, Users`
 3. **What built-in account is for guest access to the computer?** → `Guest`
 4. **What is the account description?** → `Built-in account for guest access to the computer/domain`
 
-## المفهوم الأمني
+## Security-relevant concepts
 
-### مبدأ أقل الصلاحيات (Principle of Least Privilege — PoLP)
-الفصل بين حسابات المسؤولين (**Administrator**) والمستخدمين القياسيين (**Standard**) يقلل مساحة الهجوم (Attack Surface): إذا تم اختراق حساب مستخدم قياسي، فإن الضرر المحتمل محدود بصلاحياته، بعكس اختراق حساب مسؤول الذي يمنح المهاجم تحكماً كاملاً بالجهاز فوراً.
+### Principle of least privilege (PoLP)
+Keeping administrator and standard accounts separate limits blast radius. If a standard account gets compromised, the attacker is stuck with whatever that account can do. If it's an admin account, they get full control of the machine immediately — no extra steps needed.
 
-### قاعدة بيانات SAM (Security Account Manager)
-تُخزَّن هاشات (Hashes) كلمات مرور الحسابات المحلية في الملف `C:\Windows\System32\config\SAM`. هذا الملف محمي أثناء عمل النظام (لا يمكن نسخه مباشرة وهو مقفل)، لكنه هدف رئيسي لأدوات مثل **Mimikatz** التي تستخرج الهاشات من ذاكرة عملية `lsass.exe` أو من نسخ الظل (Shadow Copies) لاستخدامها لاحقاً في هجمات Pass-the-Hash أو كسر كلمات المرور Offline.
+### The SAM database
+Local password hashes live in `C:\Windows\System32\config\SAM`. The file is locked while the OS is running and can't just be copied directly, but that hasn't stopped it from being a primary target — tools like **Mimikatz** pull hashes out of `lsass.exe`'s memory or from shadow copies instead, and those hashes then get used in pass-the-hash attacks or offline cracking.
 
-### الحسابات المدمجة (Built-in Accounts)
-فهم دور الحسابات الخاصة المدمجة في Windows مهم لتمييز السلوك الطبيعي عن المشبوه:
-- **Guest**: حساب ضيف محدود الصلاحيات، مُعطَّل افتراضياً في النسخ الحديثة.
-- **WDAGUtilityAccount**: حساب خاص يُستخدم مع ميزة **Windows Defender Application Guard** (المعزل الأمني) لتشغيل المتصفح داخل بيئة معزولة عند فتح مواقع غير موثوقة.
+### Built-in accounts
+Recognizing Windows' default accounts matters for telling normal behavior apart from something suspicious:
+- **Guest** — limited-access account, disabled by default on modern Windows.
+- **WDAGUtilityAccount** — used by Windows Defender Application Guard to run the browser inside an isolated container when visiting untrusted sites.
 
-## شرح الأوامر العملية
+## Commands
 
 ### `net user`
-يعرض قائمة بكل حسابات المستخدمين المحليين المعرّفة على الجهاز. خطوة استكشافية أساسية (Enumeration) سواء للمسؤول (لمراجعة الحسابات) أو للمهاجم بعد الوصول الأولي (لمعرفة الحسابات المتاحة والبحث عن أهداف لتصعيد الصلاحيات).
+Lists every local user account on the machine. Basic enumeration step — useful whether you're an admin auditing accounts or an attacker who just landed on a box and wants to know what's there.
 
 ```cmd
 net user
 ```
 
 ### `net user tryhackmebilly`
-نفس الأمر السابق لكن موجَّه لحساب محدد (`tryhackmebilly`)، فيعرض تفاصيله الكاملة: تاريخ الإنشاء، آخر دخول، المجموعات التي ينتمي إليها، وحالة الحساب (مفعّل/معطّل).
+Same command, pointed at a specific account. Returns full detail: creation date, last logon, group memberships, and whether the account is enabled.
 
 ```cmd
 net user tryhackmebilly
 ```
 
 ### `net localgroup Administrators`
-يعرض كل أعضاء مجموعة **Administrators** المحلية. من أهم الأوامر أمنياً — سواء للتدقيق (التأكد أن لا أحد غير مصرَّح له عضو في هذه المجموعة) أو للمهاجم (لمعرفة من يملك صلاحيات كاملة على الجهاز كهدف للانتحال أو التصعيد).
+Lists everyone in the local **Administrators** group. One of the highest-value commands for both defenders (confirming nobody unauthorized has admin) and attackers (identifying targets for impersonation or escalation).
 
 ```cmd
 net localgroup Administrators
 ```
 
 ### `whoami /priv`
-يعرض كل الامتيازات (**Privileges**) المرتبطة بالمستخدم الحالي في جلسته الحالية (مثل `SeDebugPrivilege` أو `SeImpersonatePrivilege`). هذه الامتيازات غالباً ما تكون طريق تصعيد الصلاحيات — فامتياز واحد مفعَّل بالخطأ لمستخدم عادي قد يُستغل بالكامل للوصول إلى صلاحيات SYSTEM.
+Shows every privilege attached to the current user's session (`SeDebugPrivilege`, `SeImpersonatePrivilege`, etc.). A single misconfigured privilege on an otherwise-standard account is a common privilege escalation route straight to SYSTEM.
 
 ```cmd
 whoami /priv
 ```
 
 ### `Get-LocalUser | Select-Object Name, Enabled, LastLogon`
-معادل PowerShell لـ `net user` لكن بمخرجات أكثر قابلية للمعالجة البرمجية:
-1. `Get-LocalUser` — يجلب كل الحسابات المحلية ككائنات (Objects) وليس نصاً مسطحاً.
-2. `Select-Object Name, Enabled, LastLogon` — يُصفّي الأعمدة المعروضة إلى ثلاثة فقط: الاسم، حالة التفعيل، وآخر دخول — وهي أهم ثلاث معلومات لتدقيق سريع للحسابات المشبوهة (حساب مفعّل لم يُستخدم منذ فترة طويلة مثلاً).
+The PowerShell equivalent of `net user`, but returns structured objects instead of flat text:
+1. `Get-LocalUser` pulls every local account as an object.
+2. `Select-Object Name, Enabled, LastLogon` trims the output down to the three fields that matter most for a quick audit — is the account enabled, and when did it last log in.
 
 ```powershell
 Get-LocalUser | Select-Object Name, Enabled, LastLogon
 ```
 
 ### `Get-LocalGroupMember -Group "Remote Desktop Users"`
-يعرض أعضاء مجموعة محلية محددة — هنا **Remote Desktop Users**، وهي مجموعة حساسة لأن عضويتها تعني إمكانية تسجيل الدخول عن بعد عبر RDP. مراجعة هذه القائمة مهمة لأن أي حساب مُضاف إليها بدون مبرر (خصوصاً بعد اختراق) يمنح المهاجم وصولاً دائماً عن بعد (Persistence).
+Lists members of a specific local group — here, **Remote Desktop Users**, which controls who can RDP in. Worth auditing regularly, since an account added to this group without a clear reason (especially after a compromise) usually means someone set up persistent remote access.
 
 ```powershell
 Get-LocalGroupMember -Group "Remote Desktop Users"

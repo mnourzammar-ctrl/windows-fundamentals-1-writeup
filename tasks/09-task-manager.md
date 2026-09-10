@@ -1,54 +1,52 @@
 # Task 9: Task Manager
 
-## السؤال والإجابة
-- **السؤال:** *What is the keyboard shortcut to open Task Manager?*
-- **الإجابة:** `Ctrl+Shift+Esc`
+## Question
+- **Q:** What is the keyboard shortcut to open Task Manager?
+- **A:** `Ctrl+Shift+Esc`
 
-## المفهوم الأمني
+## Security-relevant concepts
 
-### صيد التهديدات (Threat Hunting)
-مراقبة العمليات النشطة (Running Processes) بشكل دوري، ومطابقة معرّف كل عملية (**PID — Process ID**) بمسارها التنفيذي الفعلي على القرص. هذه المطابقة أساسية لأن عمليات كثيرة يمكن أن تحمل نفس الاسم لكن تنفّذ من مسار مختلف تماماً عن المسار الشرعي المتوقع — وهذا مؤشر شبهة قوي.
+### Threat hunting basics
+Watching running processes and matching each one's PID to its actual file path on disk. This matters because plenty of malware shares a name with a legitimate process but runs from a completely different location — and that mismatch is one of the fastest ways to spot something wrong.
 
-### كشف التمويه (Process Masquerading)
-تقنية يستخدمها المهاجمون بتسمية عملية خبيثة بنفس اسم عملية نظام رسمية معروفة (مثل `svchost.exe` أو `explorer.exe`) لتفادي لفت الانتباه في قائمة العمليات. الكشف عن هذا يتطلب التحقق من أمور مثل: مسار الملف الفعلي، التوقيع الرقمي (Digital Signature)، والعملية الأم (Parent Process) — فمثلاً `svchost.exe` الشرعي يجب أن يكون مساره داخل `System32` وعمليته الأم هي `services.exe`، وأي انحراف عن ذلك يُعد علامة تمويه محتملة.
+### Process masquerading
+Naming a malicious process after a well-known system one (`svchost.exe`, `explorer.exe`) to blend into the process list. Catching it means checking the actual file path, the digital signature, and the parent process — a legitimate `svchost.exe`, for instance, should be running from System32 with `services.exe` as its parent. Anything that deviates from that is worth a second look.
 
-### أدوات التحليل المتقدمة (Sysinternals)
-حزمة أدوات مجانية من Microsoft، وأبرزها **Process Explorer** الذي يوفر ميزات تفوق Task Manager الافتراضي بكثير: عرض شجرة العمليات المترابطة (Parent → Child)، التحقق من التوقيع الرقمي لكل ملف تنفيذي مباشرة، وعرض تفاصيل الـ DLLs والمقابض (Handles) المحمَّلة داخل كل عملية — وهي معلومات أساسية للتعامل مع Rootkits والبرمجيات الخبيثة المتقدمة التي تحاول إخفاء نفسها من الأدوات الاعتيادية.
+### Sysinternals
+A free tool suite from Microsoft, and **Process Explorer** in particular goes well beyond what Task Manager offers by default — a full parent/child process tree, signature verification built directly into the process list, and visibility into loaded DLLs and handles per process. That level of detail is essential when dealing with rootkits or anything actively trying to hide from standard tools.
 
-## شرح الأوامر العملية
+## Commands
 
 ### `taskmgr`
-يشغّل تطبيق **Task Manager** مباشرة من سطر الأوامر (بديل لاختصار `Ctrl+Shift+Esc`). مفيد ضمن سكربتات آلية أو عند عدم عمل الاختصار.
+Launches Task Manager directly from the command line — an alternative to the `Ctrl+Shift+Esc` shortcut, useful in scripts or when the shortcut isn't working for some reason.
 
 ```cmd
 taskmgr
 ```
 
 ### `tasklist`
-يعرض قائمة نصية بكل العمليات النشطة حالياً مع معرّف كل عملية (PID) واستهلاكها التقريبي للذاكرة. بديل نصي سريع (بدون واجهة رسومية) لفحص العمليات — مفيد بشكل خاص عند العمل عن بعد عبر جلسة نصية فقط (مثل shell بعد استغلال ثغرة) حيث لا تتوفر واجهة رسومية.
+Prints a text list of running processes with their PID and rough memory usage. A quick, GUI-free way to check processes — handy in remote or shell-only sessions where a graphical interface isn't available, like after landing a shell through an exploit.
 
 ```cmd
 tasklist
 ```
 
 ### `taskkill /PID <PID_NUMBER> /F`
-تفكيك الأمر:
-- `taskkill` — أمر لإنهاء عملية قيد التشغيل.
-- `/PID <PID_NUMBER>` — يحدد العملية المستهدفة برقم معرّفها (PID) بدلاً من اسمها (أدق، خصوصاً لو كان هناك عدة عمليات بنفس الاسم).
-- `/F` — إنهاء إجباري (**Force**)، أي إيقاف العملية فوراً حتى لو كانت لا تستجيب لطلب الإغلاق العادي.
+- `taskkill` — terminates a running process.
+- `/PID <PID_NUMBER>` — targets it by process ID rather than name, which matters when multiple processes share the same name.
+- `/F` — forces termination immediately, even if the process isn't responding.
 
-يُستخدم هذا الأمر لإيقاف عملية مشبوهة أو خبيثة فور اكتشافها أثناء الاستجابة لحادثة أمنية.
+Used to kill a suspicious or malicious process as soon as it's identified during incident response.
 
 ```cmd
 taskkill /PID <PID_NUMBER> /F
 ```
 
 ### `Get-Process | Select-Object Id, ProcessName, Path, Company`
-أمر PowerShell لفحص العمليات بتفصيل أكبر من `tasklist`، خطوة بخطوة:
-1. `Get-Process` — يجلب كل العمليات النشطة ككائنات كاملة (تحتوي عشرات الخصائص لكل عملية).
-2. `Select-Object Id, ProcessName, Path, Company` — يُصفّي الأعمدة المعروضة إلى أربعة فقط: معرّف العملية (PID)، اسمها، **المسار الكامل للملف التنفيذي على القرص**، والشركة المصنّعة المسجَّلة في بيانات الملف.
+1. `Get-Process` returns every running process as a full object.
+2. `Select-Object` narrows the output to four fields: PID, process name, **full file path on disk**, and the registered company name.
 
-أهمية هذا الأمر أمنياً: عمود `Path` تحديداً هو ما يكشف عمليات التمويه (Process Masquerading) — فعملية تحمل اسم `svchost.exe` لكن مسارها `C:\Users\Public\svchost.exe` بدلاً من `C:\Windows\System32\svchost.exe` هي علامة اختراق شبه مؤكدة.
+The `Path` column is the important one here — it's exactly what exposes process masquerading. A process named `svchost.exe` running from `C:\Users\Public\svchost.exe` instead of `C:\Windows\System32\svchost.exe` is close to a confirmed red flag on its own.
 
 ```powershell
 Get-Process | Select-Object Id, ProcessName, Path, Company

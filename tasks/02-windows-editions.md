@@ -1,36 +1,30 @@
 # Task 2: Windows Editions
 
-## المحتوى
-شرح الإصدارات المختلفة لنظام Windows (Home, Pro, Enterprise, Windows Server) والفروق الوظيفية والأمنية بينها.
+## Overview
+Covers the different Windows editions — Home, Pro, Enterprise, Server — and what actually separates them beyond marketing.
 
-## المفهوم الأمني
+## Security-relevant differences
+Home is missing a handful of features that matter a lot once you're managing more than one machine:
+- **BitLocker** — full-disk encryption isn't available.
+- **Group Policy Objects (GPO)** — no centralized policy management (password rules, permissions, update behavior, etc.).
+- **Active Directory domain join** — Home machines can't join a domain at all.
 
-### الفروقات الأمنية بين الإصدارات
-- إصدار **Home** لا يدعم ميزات حيوية للمؤسسات والأمان مثل:
-  - **BitLocker**: تشفير القرص الكامل.
-  - **Group Policy Objects (GPO)**: إدارة السياسات المركزية (كلمات مرور، صلاحيات، تحديثات...).
-  - **Active Directory Domain Join**: الانضمام لنطاق مركزي تديره الشركة.
-- إصدارا **Pro** و **Enterprise** مصممان لبيئات الأعمال، ويوفران هذه الأدوات للتحكم المركزي بالحسابات والأجهزة عبر الشبكة.
+Pro and Enterprise exist specifically to close that gap, since any organization managing more than a handful of endpoints needs centralized control rather than configuring each machine by hand.
 
-### إدارة بيئات المؤسسات
-الشركات تعتمد على Pro/Enterprise لأن الأمان في بيئة متعددة الأجهزة يحتاج إدارة مركزية: تطبيق سياسة كلمات مرور موحدة، فرض تحديثات، تقييد صلاحيات المستخدمين — وكل هذا غير متاح في Home.
+### Why this matters in practice
+A lot of "why is this machine unmanaged" incidents trace back to someone deploying a Home edition machine into an environment that assumed domain-joined, policy-managed endpoints. Knowing which edition you're dealing with tells you upfront what controls are even possible.
 
-## شرح الأوامر العملية
+## Commands
 
 ### `systeminfo`
-أمر CMD يعرض تقريراً كاملاً عن النظام: اسم الإصدار (OS Name)، رقم البناء (Build)، التاريخ، المعالج، الذاكرة، الـ Hotfixes المثبتة، وغيرها. من الناحية الأمنية، هذا الأمر من أول ما ينفذه المهاجم بعد الوصول لجهاز (Post-Exploitation Recon) لمعرفة نسخة النظام والثغرات المحتملة غير المرقّعة.
+Prints a full system report — OS name, build number, install date, CPU, memory, and installed hotfixes. This is usually one of the first things run after landing on a box during post-exploitation recon, since the build number and patch level often point straight at known, unpatched vulnerabilities.
 
 ```cmd
 systeminfo
 ```
 
 ### `Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsHardwareAbstractionLayer`
-أمر PowerShell يقوم بما يلي خطوة بخطوة:
-1. `Get-ComputerInfo` — يجلب كائن (Object) ضخم يحتوي على عشرات الخصائص عن النظام (نسخة الويندوز، BIOS، الذاكرة، الشبكة...).
-2. الرمز `|` (Pipe) — يمرر ناتج الأمر الأول كمدخل للأمر التالي بدلاً من طباعته كاملاً.
-3. `Select-Object WindowsProductName, WindowsVersion, OsHardwareAbstractionLayer` — يُصفّي الناتج ليعرض فقط ثلاث خصائص محددة: اسم الإصدار (مثلاً Windows 10 Pro)، رقم الإصدار، وطبقة تجريد العتاد (HAL).
-
-هذا النمط (Cmdlet → Pipe → Select-Object) هو الأسلوب القياسي في PowerShell لاستخلاص بيانات محددة من ناتج ضخم، بدلاً من قراءة كل شيء يدوياً.
+`Get-ComputerInfo` on its own returns dozens of properties, most of which you don't need. Piping it into `Select-Object` with specific property names trims that down to just the edition name, version, and HAL layer. This pipe-then-filter pattern (cmdlet → `|` → `Select-Object`) is the standard way to pull specific fields out of a large PowerShell object instead of scrolling through everything.
 
 ```powershell
 Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsHardwareAbstractionLayer

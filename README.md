@@ -1,12 +1,14 @@
-# Windows Fundamentals 1 — TryHackMe Documentation
+# Windows Fundamentals 1 (TryHackMe)
 
-توثيق تفصيلي لغرفة **Windows Fundamentals 1** على منصة TryHackMe، يغطي المفاهيم الأمنية والأوامر العملية لكل مهمة (Task)، مع شرح موسّع لكل خطوة وكل أمر/سكريبت مستخدم.
+Notes and writeup from the TryHackMe **Windows Fundamentals 1** room, covering the core areas of the Windows operating system from a security perspective: file system permissions, the System32 directory, local accounts, UAC, the Control Panel/Settings split, and process monitoring through Task Manager.
 
-## البنية (Structure)
+Each task file below goes past the room's answers and explains the "why" behind the security angle, along with the commands used and what each one actually does.
+
+## Structure
 
 ```
-windows-fundamentals-1-repo/
-├── README.md                  ← هذا الملف
+windows-fundamentals-1-writeup/
+├── README.md
 └── tasks/
     ├── 01-introduction.md
     ├── 02-windows-editions.md
@@ -19,22 +21,22 @@ windows-fundamentals-1-repo/
     └── 09-task-manager.md
 ```
 
-## نظرة عامة على الغرفة
+## Room overview
 
-غرفة **Windows Fundamentals 1** هي مدخل تعريفي بنظام التشغيل Windows من منظور أمني: بيئة العمل الرسومية، نظام الملفات NTFS، الحسابات والصلاحيات، آلية حماية UAC، أدوات التحكم (Control Panel/Settings)، ومراقبة العمليات عبر Task Manager. كل مهمة تربط المفهوم الأساسي (كيف يعمل النظام) بالزاوية الأمنية (كيف يُستغل أو يُراقَب من منظور مهاجم/مدافع).
+Windows Fundamentals 1 is an introductory room, but treating it as "just basics" undersells it — most of what's covered here shows up again later in privilege escalation and incident response rooms. NTFS permissions, LOLBins, UAC's split-token model, and process masquerading are all concepts that keep reappearing once you move into offensive or defensive Windows work.
 
-## جدول المهام
+## Task summary
 
-| # | المهمة | المحور الأمني الأساسي |
-|---|--------|------------------------|
-| 1 | Introduction | بيئة الاختبار المعزولة |
-| 2 | Windows Editions | فروقات الإصدارات وتأثيرها الأمني (BitLocker/GPO/AD) |
-| 3 | Desktop (GUI) | الوصول السريع للأدوات أثناء الاستجابة للحوادث |
-| 4 | The File System | صلاحيات NTFS وACLs |
-| 5 | Windows\System32 | LOLBINs وDLL Hijacking |
-| 6 | User Accounts | PoLP وقاعدة بيانات SAM |
-| 7 | User Account Control | Split Token وBypass UAC |
-| 8 | Settings & Control Panel | الجدار الناري ومنع Lateral Movement |
-| 9 | Task Manager | Threat Hunting وProcess Masquerading |
+| # | Task | Main security angle |
+|---|------|----------------------|
+| 1 | Introduction | Isolated lab environment |
+| 2 | Windows Editions | Feature gaps between editions (BitLocker, GPO, AD join) |
+| 3 | Desktop (GUI) | Fast access to tools during incident response |
+| 4 | The File System | NTFS permissions and ACLs |
+| 5 | Windows\System32 | LOLBins and DLL hijacking |
+| 6 | User Accounts | Least privilege and the SAM database |
+| 7 | User Account Control | Split tokens and UAC bypass |
+| 8 | Settings & Control Panel | Firewall rules and blocking lateral movement |
+| 9 | Task Manager | Threat hunting and process masquerading |
 
-كل ملف داخل `tasks/` يحتوي على: شرح المفهوم، الأسئلة والإجابات (إن وجدت)، وشرح تفصيلي سطراً بسطر لكل أمر/سكريبت مستخدم — ماذا يفعل، ولماذا هو مهم أمنياً.
+Every file in `tasks/` follows the same layout: the concept, the room's question and answer (where one exists), and a command-by-command breakdown of anything run in CMD or PowerShell.

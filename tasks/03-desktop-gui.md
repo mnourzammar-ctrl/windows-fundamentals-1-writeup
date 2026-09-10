@@ -1,19 +1,18 @@
 # Task 3: Desktop (GUI)
 
-## المحتوى
-استعراض عناصر الواجهة الرسومية الأساسية لنظام Windows: قائمة **Start**، شريط المهام **Taskbar**، منطقة التنبيهات **Action Center**، ونافذة **Run**.
+## Overview
+Walks through the basic GUI elements: the Start menu, taskbar, Action Center, and the Run dialog.
 
-## المفهوم الأمني
+## Why it's worth knowing cold
+### Speed during incident response
+Knowing shortcuts and quick-access paths saves real time when you're in the middle of investigating a live incident — pulling up Event Viewer, Task Manager, or a PowerShell console fast matters more than it sounds like it would, especially when you're trying to catch something before it moves or covers its tracks.
 
-### الوصول السريع للأدوات التشخيصية
-معرفة اختصارات النظام تسرّع العمل أثناء الاستجابة للحوادث الأمنية (**Incident Response**) — فمحلل الأمان يحتاج فتح أدوات مثل Event Viewer أو Task Manager أو PowerShell بسرعة أثناء التحقيق في حادثة جارية، دون إضاعة وقت في التنقل بالماوس.
+### Watching Action Center
+Action Center notifications (Defender alerts, firewall prompts) are sometimes the first visible sign that something's wrong. A lot of infections get noticed first through a security balloon notification rather than any deliberate monitoring.
 
-### مراقبة التنبيهات
-متابعة إشعارات **Action Center** (مثل تنبيهات Windows Defender أو Firewall) تساعد على رصد أي نشاط غير طبيعي مبكراً — كثير من البرمجيات الخبيثة تُكتشف أول مرة عبر تنبيه أمني بسيط يظهر في هذه المنطقة.
-
-## شرح الأمر العملي
+## Command
 
 ### `Win + R`
-اختصار لوحة مفاتيح يفتح نافذة **Run Dialog** مباشرة. هذه النافذة تسمح بتنفيذ أي أمر أو فتح أي برنامج بكتابة اسمه مباشرة (مثل `cmd`، `powershell`، `regedit`، `services.msc`) دون المرور بقائمة Start.
+Opens the Run dialog directly, which lets you launch any program or command by name (`cmd`, `powershell`, `regedit`, `services.msc`) without going through Start.
 
-من الزاوية الأمنية، نافذة Run هي أيضاً أداة يستغلها المهاجمون بعد الوصول الأولي (بعد Phishing مثلاً) لتشغيل أوامر خبيثة بسرعة (مثل تشغيل `powershell -enc <base64 payload>`)، لذلك مراقبة استخدام هذه النافذة أو تقييد الوصول إليها عبر GPO يُعد إجراءً دفاعياً شائعاً في بيئات المؤسسات.
+It's also worth flagging from an attacker's perspective: Run is a common way to execute something quickly right after initial access — for example, launching `powershell -enc <base64 payload>` straight from Run instead of a full terminal session. Some hardened environments restrict or log Run dialog usage through GPO for exactly this reason.

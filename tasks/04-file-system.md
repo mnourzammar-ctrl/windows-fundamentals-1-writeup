@@ -1,42 +1,42 @@
 # Task 4: The File System
 
-## المحتوى
-هيكلية نظام الملفات **NTFS**، كيفية تنظيم الأقراص والتنسيقات، ونظام الصلاحيات الخاص بالملفات والمجلدات (**NTFS Permissions**).
+## Overview
+Covers the **NTFS** file system: how disks and volumes are organized, and how file/folder permissions work.
 
-## المفهوم الأمني
+## Security-relevant concepts
 
-### قوائم التحكم بالوصول (ACLs — Access Control Lists)
-كل ملف أو مجلد في NTFS مرتبط بقائمة تحدد من يملك صلاحية القراءة (Read)، الكتابة/التعديل (Write/Modify)، أو التنفيذ (Execute)، ولأي مستخدم أو مجموعة. هذه القوائم هي أساس نموذج الحماية في Windows.
+### Access Control Lists (ACLs)
+Every file and folder on NTFS carries a list defining who can read, write/modify, or execute it, broken down by user or group. This is the entire foundation of Windows' permission model — everything else (UAC, integrity levels) builds on top of it.
 
-### ضعف الصلاحيات (Insecure File Permissions)
-واحدة من أشهر ثغرات تصعيد الصلاحيات (**Privilege Escalation**) في Windows: عندما يمتلك مستخدم عادي (غير مسؤول) صلاحية كتابة أو تعديل على ملف أو مجلد حساس (مثل خدمة نظام تعمل بصلاحيات SYSTEM)، يمكنه استبدال الملف التنفيذي بملف خبيث، فتُنفَّذ الحمولة الخبيثة تلقائياً بصلاحيات أعلى من صلاحيات المستخدم الأصلية. هذا النوع من الفحص (البحث عن صلاحيات مفتوحة خاطئة) هو خطوة أساسية في أي اختبار اختراق داخلي (Internal Pentest) أو CTF.
+### Insecure file permissions
+One of the most common privilege escalation paths on Windows: a standard, non-admin user has write or modify access to a sensitive file or folder — often a binary run by a service under SYSTEM. Swap that binary for a malicious one, wait for the service to restart (or trigger it), and the payload runs with far more privilege than the original user ever had. Checking for exactly this kind of misconfigured permission is one of the first things you do in any internal pentest or privesc-focused CTF box.
 
-## شرح الأوامر العملية
+## Commands
 
 ### `icacls "C:\ExampleFolder"`
-أمر CMD يعرض قوائم التحكم بالوصول (ACL) لمجلد أو ملف محدد. الناتج يُظهر لكل مستخدم/مجموعة رمزاً يمثل نوع الصلاحية، مثل:
-- `F` = Full Control (تحكم كامل)
-- `M` = Modify (تعديل)
+Shows the ACL for a given file or folder. The output lists each user/group next to a permission code:
+- `F` = Full Control
+- `M` = Modify
 - `RX` = Read & Execute
 - `W` = Write
 
-يُستخدم هذا الأمر بكثرة أثناء البحث عن صلاحيات خاطئة قابلة للاستغلال في تصعيد الصلاحيات.
+This is the go-to command when hunting for exploitable permission misconfigurations.
 
 ```cmd
 icacls "C:\ExampleFolder"
 ```
 
 ### `dir /q`
-يعرض محتويات المجلد الحالي، مع إضافة عمود يوضح **مالك الملف (Owner)** لكل عنصر — مفيد لمعرفة من أنشأ أو يملك ملفاً معيناً.
+Lists the contents of the current directory with an extra column showing the **owner** of each item — useful for quickly figuring out who created or owns a given file.
 
 ```cmd
 dir /q
 ```
 
 ### `Get-Acl -Path "C:\Windows" | Format-List`
-أمر PowerShell معادل وأكثر تفصيلاً لـ `icacls`، خطوة بخطوة:
-1. `Get-Acl -Path "C:\Windows"` — يجلب كائن ACL الكامل الخاص بالمسار المحدد (يشمل المالك، المجموعة، وكل القواعد الفردية).
-2. `Format-List` — يعرض الناتج بصيغة قائمة تفصيلية (كل خاصية في سطر منفصل) بدلاً من جدول مختصر، وهذا مفيد لأن كائن ACL يحتوي بيانات معقدة (Access Rules متعددة) يصعب قراءتها في عرض جدولي.
+The PowerShell equivalent of `icacls`, with more detail:
+1. `Get-Acl -Path "C:\Windows"` pulls the full ACL object for the path — owner, primary group, and every individual access rule.
+2. `Format-List` renders it one property per line instead of a compressed table, which matters here since an ACL object contains nested, multi-rule data that a table view flattens into something unreadable.
 
 ```powershell
 Get-Acl -Path "C:\Windows" | Format-List
